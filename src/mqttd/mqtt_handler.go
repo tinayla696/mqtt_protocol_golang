@@ -246,6 +246,7 @@ func (mqtt *MqttClient) subscribeLoop(topicPrefix string) {
 		<-token.Done()
 		if token.Error() != nil {
 			zap.S().Error(token.Error())
+			<-time.After(500 * time.Millisecond)
 		}
 	}
 }
@@ -265,6 +266,7 @@ func (mqtt *MqttClient) multipleSubscribeLoop(topicPrefixs []string) {
 		<-token.Done()
 		if token.Error() != nil {
 			zap.S().Error(token.Error())
+			<-time.After(500 * time.Millisecond)
 		}
 	}
 

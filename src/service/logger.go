@@ -15,7 +15,7 @@ const (
 	// public
 
 	// private
-	_MAXLOGFILE int = 5
+	_MAXLOGFILE int = 2
 )
 
 /*------------------------------------*/ /*

@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tinayla696/mqtt_go/mqttd"
-	"github.com/tinayla696/mqtt_go/service"
+	"github.com/tinayla696/mqtt_protocol_golang/mqttd"
+	"github.com/tinayla696/mqtt_protocol_golang/service"
 	"go.uber.org/zap"
 )
 

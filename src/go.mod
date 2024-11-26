@@ -1,4 +1,4 @@
-module github.com/tinayla696/mqtt_go
+module github.com/tinayla696/mqtt_protocol_golang
 
 go 1.23.3
 

@@ -1,0 +1,17 @@
+{
+    "MQTT": {
+        "tcp://localhost:1883": {
+            "endpoint": "127.0.0.1:1883",
+            "username": "",
+            "password": "",
+            "root_ca": "",
+            "key": "",
+            "cert": "",
+            "subscribe_topics": {
+                "control/+": 2,
+                "status/+": 0,
+                "events/+": 1
+            }
+        }
+    }
+}

@@ -4,6 +4,7 @@ go 1.23.3
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.0
+	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.27.0
 )
 

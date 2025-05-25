@@ -1,0 +1,13 @@
+2025-05-25T15:54:57.624+0900	[34mINFO[0m	src/main.go:65	Debug mode is enabled
+2025-05-25T15:54:57.634+0900	[34mINFO[0m	src/main.go:71	Profiling initialized{logDir 15 0 /mnt/c/Users/black/Documents/workspace/mqtt_protocol_golang/log.d <nil>}
+2025-05-25T15:54:57.638+0900	[35mDEBUG[0m	src/main.go:82	Configuration loaded successfully 
+ {MQTT:map[tcp://localhost:1883:{Endpoint:127.0.0.1:1883 Username: Password: RootCA: PrivateKey: ClientCert: SubscribeTopics:map[control/+:2 events/+:1 status/+:0]}]}
+2025-05-25T15:54:57.639+0900	[34mINFO[0m	mqttm/handler.go:127	Connected to MQTT broker: test00
+2025-05-25T15:54:57.641+0900	[34mINFO[0m	src/main.go:101	MQTT module for tcp://localhost:1883 is running
+2025-05-25T15:54:57.639+0900	[34mINFO[0m	mqttm/handler.go:134	Connecting to MQTT broker: [tcp://127.0.0.1:1883]
+2025-05-25T15:54:57.641+0900	[35mDEBUG[0m	mqttm/handler.go:172	Published message to topic register/test00 with QoS 0
+2025-05-25T15:54:57.642+0900	[34mINFO[0m	mqttm/handler.go:145	Subscribed to topics: map[control/+:2 events/+:1 status/+:0]
+2025-05-25T15:55:23.666+0900	[34mINFO[0m	src/main.go:106	Received interrupt signal, shutting down...
+2025-05-25T15:55:23.667+0900	[35mDEBUG[0m	mqttm/handler.go:172	Published message to topic register/test00 with QoS 0
+2025-05-25T15:55:23.668+0900	[34mINFO[0m	mqttm/handler.go:159	Disconnecting from MQTT broker: test00
+2025-05-25T15:55:23.668+0900	[34mINFO[0m	src/main.go:109	MQTT module for tcp://localhost:1883 has been stopped

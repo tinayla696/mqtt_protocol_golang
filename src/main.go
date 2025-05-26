@@ -41,7 +41,7 @@ var (
 
 type (
 	Config struct {
-		MQTT map[string]mqttm.Config `json:"MQTT"`
+		MQTT map[string]*mqttm.Config `json:"MQTT"`
 	}
 )
 
@@ -90,7 +90,7 @@ func main() {
 
 	// Setup MQTT Module
 	for hostName, mqttConf := range conf.MQTT {
-		mqttModule, err := mqttm.New(ctx, deviceIDEnv, hostName, mqttConf)
+		mqttModule, err := mqttm.New(ctx, deviceIDEnv, hostName, *mqttConf)
 		if err != nil {
 			zap.S().Warnf("Failed to create MQTT module for %s: %v", hostName, err)
 			continue

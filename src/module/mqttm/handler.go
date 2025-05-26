@@ -59,6 +59,7 @@ func (m *Module) Stop() {
 }
 
 // *--------------------------------------------------------------------------------------
+// Setupt MQTT options
 func (m *Module) setOptions(conf Config) (*MQTT.ClientOptions, error) {
 	if conf.Endpoint == "" {
 		return &MQTT.ClientOptions{}, fmt.Errorf("MQTT endpoint is required")
@@ -108,98 +109,13 @@ func (m *Module) setOptions(conf Config) (*MQTT.ClientOptions, error) {
 }
 
 // *--------------------------------------------------------------------------------------
+// Get Connect Status Payload
 func (m *Module) getStatusPayload() []byte {
 	statusMsg := map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
-		"client_id": m.clientID,
+		"id":        m.clientID,
 		"Status":    connectStatus,
 	}
 	payload, _ := json.Marshal(statusMsg)
 	return payload
-}
-
-// *--------------------------------------------------------------------------------------
-func (m *Module) connectToBroker() error {
-	if token := m.client.Connect(); token.Wait() && token.Error() != nil {
-		return token.Error()
-	}
-	zap.S().Infof("Connected to MQTT broker: %s", m.clientID)
-	return nil
-}
-
-// *--------------------------------------------------------------------------------------
-func (m *Module) connectHandler(subTopics map[string]byte) MQTT.OnConnectHandler {
-	return func(client MQTT.Client) {
-		zap.S().Infof("Connecting to MQTT broker: %+v", m.option.Servers)
-		connectStatus = "on-line"
-		topic := fmt.Sprintf("%s/%s", REGISTER_TOPIC_PREFIX, m.clientID)
-		if err := m.publishFn(topic, byte(0), m.getStatusPayload()); err != nil {
-			zap.S().Errorf("Failed to publish status message: %v", err)
-		}
-
-		// Set up subscriptions
-		if token := client.SubscribeMultiple(subTopics, m.subscribeFn); token.Wait() && token.Error() != nil {
-			zap.S().Errorf("Failed to subscribe to topics: %v", token.Error())
-		} else {
-			zap.S().Infof("Subscribed to topics: %+v", subTopics)
-		}
-	}
-}
-
-// *--------------------------------------------------------------------------------------
-func (m *Module) disconnectFromBroker() {
-	connectStatus = "off-line"
-	topic := fmt.Sprintf("%s/%s", REGISTER_TOPIC_PREFIX, m.clientID)
-	if err := m.publishFn(topic, byte(0), m.getStatusPayload()); err != nil {
-		zap.S().Errorf("Failed to publish disconnection message: %v", err)
-	}
-
-	m.client.Disconnect(250)
-	zap.S().Infof("Disconnecting from MQTT broker: %s", m.clientID)
-}
-
-// *--------------------------------------------------------------------------------------
-func (m *Module) publishFn(topic string, qos byte, payload []byte) error {
-	if qos > 2 {
-		zap.S().Warnf("QoS level %d is not supported, using QoS 0", qos)
-		qos = DEFAULT_QOS
-	}
-	token := m.client.Publish(topic, qos, false, payload)
-	if token.Wait() && token.Error() != nil {
-		return fmt.Errorf("failed to publish message to topic %s: %w", topic, token.Error())
-	}
-	zap.S().Debugf("Published message to topic %s with QoS %d", topic, qos)
-	return nil
-}
-
-// *--------------------------------------------------------------------------------------
-func (m *Module) subscribeFn(client MQTT.Client, contents MQTT.Message) {
-	m.SubCh <- Contents{
-		Timestamp: time.Now(),
-		Hostname:  m.hostName,
-		Topic:     contents.Topic(),
-		ClientID:  m.clientID,
-		QoS:       contents.Qos(),
-		Payload:   contents.Payload(),
-	}
-}
-
-// *--------------------------------------------------------------------------------------
-func (m *Module) publishLoop() {
-	for {
-		select {
-		case <-m.PubCh:
-			close(m.PubCh)
-			return
-
-		case contents, isNotClose := <-m.PubCh:
-			if !isNotClose {
-				return
-			}
-			topic := fmt.Sprintf("%s/%s", contents.Topic, m.clientID)
-			if err := m.publishFn(topic, contents.QoS, contents.Payload); err != nil {
-				zap.S().Errorf("Failed to publish message: %v", err)
-			}
-		}
-	}
 }

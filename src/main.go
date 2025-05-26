@@ -12,6 +12,7 @@ import (
 	"github.com/tinayla696/mqtt_protocol_golang/develop"
 	"github.com/tinayla696/mqtt_protocol_golang/module"
 	"github.com/tinayla696/mqtt_protocol_golang/module/mqttm"
+	"github.com/tinayla696/mqtt_protocol_golang/service"
 	"go.uber.org/zap"
 )
 
@@ -33,8 +34,8 @@ var (
 	logDirEnv     string = "./log.d"
 
 	// Global configuration
-	conf            Config                   = Config{}
-	mqttConnections map[string]*mqttm.Module = make(map[string]*mqttm.Module)
+	conf        Config                   = Config{}
+	mqttClients map[string]*mqttm.Module = make(map[string]*mqttm.Module)
 )
 
 type (
@@ -68,7 +69,7 @@ func main() {
 			zap.S().Fatal("Failed to initialize profiling", zap.Error(err))
 		}
 		defer prof.Stop()
-		zap.S().Info("Profiling initialized", zap.String("logDir", logDirEnv))
+		zap.S().Infof("Profiling initialized %s", logDirEnv)
 	}
 
 	// Load configuration
@@ -79,7 +80,7 @@ func main() {
 			zap.S().DPanic("Failed to parse configuration file", zap.Error(err))
 		}
 	}
-	zap.S().Debugf("Configuration loaded successfully \n %+v", conf)
+	// zap.S().Debugf("Configuration loaded successfully \n %+v", conf)
 
 	// Context & Interrupt handling
 	ctx, cancelFn := context.WithCancel(context.Background())
@@ -97,17 +98,23 @@ func main() {
 			zap.S().Fatalf("Failed to run MQTT module for %s: %s", hostName, err.Error())
 			continue
 		}
-		mqttConnections[hostName] = mqttModule
+		mqttClients[hostName] = mqttModule
 		zap.S().Infof("MQTT module for %s is running", hostName)
 	}
+
+	// Start Dispatcher / Worker
+	d := service.NewDispatcher(mqttClients, 1)
+	d.Start()
 
 	// Handle interrupt signal
 	<-interrupt
 	zap.S().Info("Received interrupt signal, shutting down...")
-	for hostName, mqttModule := range mqttConnections {
+	for hostName, mqttModule := range mqttClients {
 		mqttModule.Stop()
 		zap.S().Infof("MQTT module for %s has been stopped", hostName)
 	}
 	cancelFn()
+
+	d.Stop() // Stop the dispatcher and wait for workers to finish
 
 }

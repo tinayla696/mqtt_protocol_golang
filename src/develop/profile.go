@@ -12,6 +12,11 @@ type Profile struct {
 }
 
 func ProfileInit(dir string) (*Profile, error) {
+	// Make sure the directory exists
+	if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+		return nil, err
+	}
+
 	// CPU Profiling
 	cpuf, err := os.Create(filepath.Join(dir, "cpu.prof"))
 	if err != nil {

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/joho/godotenv"
@@ -25,7 +26,7 @@ const (
 
 var (
 	// Arguments
-	isDebugArg *bool   = flag.Bool("debug", false, "Enable debug mode")
+	appModeArg *string = flag.String("m", "proc", "Mode of operation (proc/debug/test)")
 	envPathArg *string = flag.String("env", ENV_PATH, "Path to the environment configuration file")
 
 	// Environment variables
@@ -57,14 +58,14 @@ func main() {
 	logDirEnv = os.Getenv(KEY_LOG_DIR)
 
 	// Setup Logging
-	loggerModule := module.SetLogger(logDirEnv, *isDebugArg)
+	loggerModule := module.SetLogger(logDirEnv, *appModeArg)
 	defer loggerModule.Sync()
 	zap.ReplaceGlobals(loggerModule)
 
 	// Development mode
-	if *isDebugArg {
+	if *appModeArg != "proc" {
 		zap.S().Info("Debug mode is enabled")
-		prof, err := develop.ProfileInit(logDirEnv)
+		prof, err := develop.ProfileInit(filepath.Join(logDirEnv, "prof"))
 		if err != nil {
 			zap.S().Fatal("Failed to initialize profiling", zap.Error(err))
 		}

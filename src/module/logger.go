@@ -20,7 +20,7 @@ const (
 	MAX_LOG_FILES = 3
 )
 
-func SetLogger(path string, isDebug bool) *zap.Logger {
+func SetLogger(path string, appMode string) *zap.Logger {
 	if fs, err := os.Stat(path); os.IsNotExist(err) || !fs.IsDir() {
 		log.Fatalf("log path %s is not a directory", path)
 
@@ -28,7 +28,7 @@ func SetLogger(path string, isDebug bool) *zap.Logger {
 		if err := os.MkdirAll(path, os.ModePerm); err != nil {
 			log.Fatalf("failed to create log directory %s: %v", path, err)
 
-			if isDebug {
+			if appMode != "proc" {
 				scan := bufio.NewScanner(os.Stdin)
 				fmt.Print("Do you want to continue? (y/n): ")
 				scan.Scan()
@@ -78,20 +78,37 @@ func SetLogger(path string, isDebug bool) *zap.Logger {
 	// Setup logger
 	var logConf zap.Config
 	logPath := filepath.Join(path, time.Now().Format("20060102-150405")+".log")
-	if isDebug {
+	switch appMode {
+	case "proc":
+		// Production mode
+		log.Println("Setting up logger in production mode")
+		logConf = zap.NewProductionConfig()
+		logConf.Encoding = "json"
+		logConf.DisableCaller = true
+		logConf.DisableStacktrace = true
+		logConf.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		logConf.OutputPaths = append(logConf.OutputPaths, logPath)
+	case "debug":
 		// Development mode
 		log.Println("Setting up logger in development mode")
 		logConf = zap.NewDevelopmentConfig()
 		logConf.Encoding = "console"
 		logConf.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 		logConf.OutputPaths = append(logConf.OutputPaths, logPath)
-	} else {
-		// Production mode
-		log.Println("Setting up logger in production mode")
+	case "test":
+		// Test mode
+		log.Println("Setting up logger in development mode")
 		logConf = zap.NewProductionConfig()
-		logConf.Encoding = "json"
-		logConf.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
-		logConf.OutputPaths = append(logConf.OutputPaths, logPath)
+		logConf.Encoding = "console"
+		logConf.DisableCaller = false
+		logConf.DisableStacktrace = true
+		logConf.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+		logConf.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	default:
+		// Default to development mode
+		log.Println("Setting up logger in default development mode")
+		logConf = zap.NewDevelopmentConfig()
+		logConf.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 
 	// Build the logger

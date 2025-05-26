@@ -1,6 +1,7 @@
 # Golang MQTT Protocol
 
-This project is a Golang-based implementation for testing MQTT communication. It provides a modular structure for managing MQTT clients, tasks, and workers, along with logging and profiling capabilities.
+This project is a Golang-based implementation for testing MQTT communication.  
+It provides a modular structure for managing MQTT clients, tasks, and workers, along with logging and profiling capabilities.
 
 ## Features
 

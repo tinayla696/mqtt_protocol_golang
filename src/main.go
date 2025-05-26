@@ -67,7 +67,7 @@ func main() {
 		zap.S().Info("Debug mode is enabled")
 		prof, err := develop.ProfileInit(filepath.Join(logDirEnv, "prof"))
 		if err != nil {
-			zap.S().Fatal("Failed to initialize profiling", zap.Error(err))
+			zap.S().Fatalf("Failed to initialize profiler: %v", err)
 		}
 		defer prof.Stop()
 		zap.S().Infof("Profiling initialized %s", logDirEnv)
@@ -75,10 +75,10 @@ func main() {
 
 	// Load configuration
 	if confd, err := os.ReadFile(configFileEnv); err != nil {
-		zap.S().Panicf("Failed to read configuration file: %s", err.Error())
+		zap.S().Fatalf("Failed to read configuration file: %s", err.Error())
 	} else {
 		if err := json.Unmarshal(confd, &conf); err != nil {
-			zap.S().DPanic("Failed to parse configuration file", zap.Error(err))
+			zap.S().Fatalf("Failed to parse configuration file %v", err)
 		}
 	}
 	// zap.S().Debugf("Configuration loaded successfully \n %+v", conf)
@@ -92,11 +92,11 @@ func main() {
 	for hostName, mqttConf := range conf.MQTT {
 		mqttModule, err := mqttm.New(ctx, deviceIDEnv, hostName, mqttConf)
 		if err != nil {
-			zap.S().Fatalf("Failed to create MQTT module for %s: %s", hostName, err.Error())
+			zap.S().Warnf("Failed to create MQTT module for %s: %v", hostName, err)
 			continue
 		}
 		if err := mqttModule.Run(); err != nil {
-			zap.S().Fatalf("Failed to run MQTT module for %s: %s", hostName, err.Error())
+			zap.S().Warnf("Failed to run MQTT module for %s: %v", hostName, err)
 			continue
 		}
 		mqttClients[hostName] = mqttModule
@@ -104,8 +104,8 @@ func main() {
 	}
 
 	// Start Dispatcher / Worker
-	d := service.NewDispatcher(mqttClients, 1)
-	d.Start()
+	dw := service.NewDispatcher(mqttClients, 1)
+	dw.Start()
 
 	// Handle interrupt signal
 	<-interrupt
@@ -116,6 +116,6 @@ func main() {
 	}
 	cancelFn()
 
-	d.Stop() // Stop the dispatcher and wait for workers to finish
+	dw.Stop() // Stop the dispatcher and wait for workers to finish
 
 }

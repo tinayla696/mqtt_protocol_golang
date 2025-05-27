@@ -46,13 +46,15 @@ func NewDispatcher(mqttClients map[string]*mqttm.Module, mqttWorkers int) *Dispa
 // Start
 func (d *Dispatcher) Start() {
 	zap.S().Info("Starting Dispatcher...")
-	d.wg.Add(1)
 
 	// DEV: 各Workerを起動
-	d.launchWorkers(d.numMqttWorkers, d.mqttTaskQue, task.MqttTaskType)
+	if len(d.MqttClients) > 0 {
+		d.launchWorkers(d.numMqttWorkers, d.mqttTaskQue, task.MqttTaskType)
+	}
 
 	// MQTT Subscription Loop
 	for domain, client := range d.MqttClients {
+		d.wg.Add(1)
 		go d.monitorMqttSubscription(domain, client)
 	}
 }

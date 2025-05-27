@@ -104,7 +104,7 @@ func main() {
 	}
 
 	// Start Dispatcher / Worker
-	dw := service.NewDispatcher(mqttClients, 1)
+	dw := service.NewDispatcher(ctx, mqttClients, 1)
 	dw.Start()
 
 	// Handle interrupt signal

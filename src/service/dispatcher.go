@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -16,11 +17,13 @@ type Dispatcher struct {
 	MqttClients map[string]*mqttm.Module // MQTT Clients
 
 	// Workers Queue
-	mqttTaskQue chan task.Task
+	taskQue chan task.Task
 
-	quit     chan struct{}
-	wg       *sync.WaitGroup // Dispatcherと結果PorcessのWaitGroup
-	workerWg *sync.WaitGroup // Worker全体のWaitGroup
+	// quit     chan struct{}
+	ctx      context.Context
+	cancelFn context.CancelFunc // コンテキストのキャンセル関数
+	wg       *sync.WaitGroup    // Dispatcherと結果PorcessのWaitGroup
+	workerWg *sync.WaitGroup    // Worker全体のWaitGroup
 
 	// Worker Type
 	numMqttWorkers int
@@ -30,11 +33,13 @@ type Dispatcher struct {
 
 // *--------------------------------------------------------------------------------------------------
 // NewDispatcher (constructor)
-func NewDispatcher(mqttClients map[string]*mqttm.Module, mqttWorkers int) *Dispatcher {
+func NewDispatcher(parentCtx context.Context, mqttClients map[string]*mqttm.Module, mqttWorkers int) *Dispatcher {
+	ctx, cancelFn := context.WithCancel(parentCtx) // コンテキストのキャンセル関数を作成
 	return &Dispatcher{
 		MqttClients:    mqttClients,
-		mqttTaskQue:    make(chan task.Task, mqttWorkers),
-		quit:           make(chan struct{}),
+		taskQue:        make(chan task.Task, mqttWorkers),
+		ctx:            ctx,
+		cancelFn:       cancelFn,
 		wg:             &sync.WaitGroup{},
 		workerWg:       &sync.WaitGroup{},
 		numMqttWorkers: mqttWorkers,
@@ -49,7 +54,7 @@ func (d *Dispatcher) Start() {
 
 	// DEV: 各Workerを起動
 	if len(d.MqttClients) > 0 {
-		d.launchWorkers(d.numMqttWorkers, d.mqttTaskQue, task.MqttTaskType)
+		d.launchWorkers(d.numMqttWorkers, d.taskQue, task.MqttTaskType)
 	}
 
 	// MQTT Subscription Loop
@@ -64,7 +69,7 @@ func (d *Dispatcher) Start() {
 func (d *Dispatcher) launchWorkers(numWorkers int, taskCh <-chan task.Task, workerType task.TaskType) {
 	for i := 0; i < numWorkers; i++ {
 		d.workerWg.Add(1)
-		w := NewWorker(i+1, taskCh, d.quit, d.workerWg, workerType)
+		w := NewWorker(i+1, taskCh, d.ctx.Done(), d.workerWg, workerType)
 		go w.Start()
 	}
 }
@@ -76,7 +81,7 @@ func (d *Dispatcher) monitorMqttSubscription(hostname string, client *mqttm.Modu
 	zap.S().Infof("Monitoring MQTT subscription on channel: %s", hostname)
 	for {
 		select {
-		case <-d.quit:
+		case <-d.ctx.Done():
 			zap.S().Warn("Dispatcher received quit signal, stopping MQTT subscription monitoring")
 			return
 
@@ -90,7 +95,7 @@ func (d *Dispatcher) monitorMqttSubscription(hostname string, client *mqttm.Modu
 				Contents: subContents,
 				ID:       d.nextTaskID,
 			}
-			if err := d.assignTaskToQue(taskContents, d.mqttTaskQue, task.MqttTaskType); err != nil {
+			if err := d.assignTaskToQue(taskContents, d.taskQue, task.MqttTaskType); err != nil {
 				zap.S().Errorf("Failed to assign task to queue: %v", err)
 			}
 		}
@@ -107,7 +112,7 @@ func (d *Dispatcher) assignTaskToQue(task task.Task, queue chan task.Task, expec
 	case queue <- task:
 		zap.S().Debug("Task assigned to queue:", zap.String("task", task.String()))
 		return nil
-	case <-d.quit:
+	case <-d.ctx.Done():
 		return fmt.Errorf("dispatcher is quitting, task %s not assigned", task.String())
 	default:
 		return fmt.Errorf("task queue is full, task %s not assigned", task.String())
@@ -118,16 +123,16 @@ func (d *Dispatcher) assignTaskToQue(task task.Task, queue chan task.Task, expec
 // Stop
 func (d *Dispatcher) Stop() {
 	zap.S().Info("Stopping Dispatcher...")
-	// DEV: 1. Stop all workers
-	close(d.quit)
+	// DEV: No.1 コンテキストをキャンセルして、全てののGoroutineを停止
+	d.cancelFn()
 
-	// DEV: 各タスクキューを閉じる
-	close(d.mqttTaskQue) // Close the task queue
+	// DEV: No.2 taskQueに書き込むProducer Goroutineを全て終了する
+	d.wg.Wait()
 
-	// DEV: すべてのWorkerの終了待ち
-	d.workerWg.Wait() // Wait for all workers to finish
+	// DEV: No.3 taskQueを閉じる
+	close(d.taskQue)
 
-	// DEV: タスク振り分けのルーチンと結果プロセスの終了待機
-	d.wg.Wait() // Wait for all goroutines to finish
+	// DEV: No.4 Worker全体の終了待機
+	d.workerWg.Wait()
 	zap.S().Info("Dispatcher stopped successfully")
 }
